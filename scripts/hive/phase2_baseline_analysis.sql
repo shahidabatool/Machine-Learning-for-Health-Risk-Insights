@@ -87,8 +87,53 @@ FROM smoking_drinking_raw;
 
 -- ------------------------------------------------------
 -- Section 3: Create cleaned features table
--- (CTAS / INSERT to build smoking_drinking_features_clean)
+-- (copy all features + add outlier flags)
 -- ------------------------------------------------------
+
+DROP TABLE IF EXISTS smoking_drinking_features_clean;
+
+CREATE TABLE smoking_drinking_features_clean AS
+SELECT
+  f.*,  -- all existing columns from phase 1
+
+  -- Outlier flags for weight, BP, sugar and liver enzymes
+  CASE 
+    WHEN weight < 30 OR weight > 200 THEN 1 
+    ELSE 0 
+  END AS weight_outlier_flag,
+
+  CASE 
+    WHEN SBP > 250 THEN 1 
+    ELSE 0 
+  END AS sbp_outlier_flag,
+
+  CASE 
+    WHEN DBP > 150 THEN 1 
+    ELSE 0 
+  END AS dbp_outlier_flag,
+
+  CASE 
+    WHEN BLDS < 40 OR BLDS > 400 THEN 1 
+    ELSE 0 
+  END AS blds_outlier_flag,
+
+  CASE 
+    WHEN SGOT_AST > 1000 THEN 1 
+    ELSE 0 
+  END AS ast_outlier_flag,
+
+  CASE 
+    WHEN SGOT_ALT > 1000 THEN 1 
+    ELSE 0 
+  END AS alt_outlier_flag,
+
+  CASE 
+    WHEN gamma_GTP > 600 THEN 1 
+    ELSE 0 
+  END AS ggtp_outlier_flag
+
+FROM smoking_drinking_features f;
+
 
 
 -- ------------------------------------------------------
@@ -96,7 +141,78 @@ FROM smoking_drinking_raw;
 -- (Counts, averages, distributions of risk flags, BMI, etc.)
 -- ------------------------------------------------------
 
+-- 4.1 Averages (SBP, DBP, BLDS, BMI)
+SELECT
+  AVG(SBP)  AS avg_SBP,
+  AVG(DBP)  AS avg_DBP,
+  AVG(BLDS) AS avg_BLDS,
+  AVG(bmi)  AS avg_bmi,
+  COUNT(*)  AS total_rows
+FROM smoking_drinking_features_clean;
+
+-- 4.2 High BP prevalence
+SELECT
+  SUM(CASE WHEN bp_high_flag = 1 THEN 1 END) AS high_bp_count,
+  COUNT(*) AS total_rows,
+  100.0 * SUM(CASE WHEN bp_high_flag = 1 THEN 1 END) / COUNT(*) AS high_bp_pct
+FROM smoking_drinking_features_clean;
+
+-- 4.3 High BLDS prevalence
+SELECT
+  SUM(CASE WHEN blds_high_flag = 1 THEN 1 END) AS high_blds_count,
+  COUNT(*) AS total_rows,
+  100.0 * SUM(CASE WHEN blds_high_flag = 1 THEN 1 END) / COUNT(*) AS high_blds_pct
+FROM smoking_drinking_features_clean;
+
+-- 4.4 Liver risk prevalence
+SELECT
+  SUM(CASE WHEN liver_risk_flag = 1 THEN 1 END) AS liver_risk_count,
+  COUNT(*) AS total_rows,
+  100.0 * SUM(CASE WHEN liver_risk_flag = 1 THEN 1 END) / COUNT(*) AS liver_risk_pct
+FROM smoking_drinking_features_clean;
+
 
 -- ------------------------------------------------------
 -- Section 5: Grouped summaries (lifestyle, age_group, sex)
 -- ------------------------------------------------------
+
+-- 5.1 Lifestyle group counts
+SELECT
+  lifestyle_group,
+  COUNT(*) AS people
+FROM smoking_drinking_features_clean
+GROUP BY lifestyle_group
+ORDER BY lifestyle_group;
+
+-- 5.2 High BP by lifestyle
+SELECT
+  lifestyle_group,
+  100.0 * SUM(CASE WHEN bp_high_flag = 1 THEN 1 END) / COUNT(*) AS bp_high_pct
+FROM smoking_drinking_features_clean
+GROUP BY lifestyle_group
+ORDER BY lifestyle_group;
+
+-- 5.3 High BLDS by lifestyle
+SELECT
+  lifestyle_group,
+  100.0 * SUM(CASE WHEN blds_high_flag = 1 THEN 1 END) / COUNT(*) AS blds_high_pct
+FROM smoking_drinking_features_clean
+GROUP BY lifestyle_group
+ORDER BY lifestyle_group;
+
+-- 5.4 Liver risk by lifestyle
+SELECT
+  lifestyle_group,
+  100.0 * SUM(CASE WHEN liver_risk_flag = 1 THEN 1 END) / COUNT(*) AS liver_risk_pct
+FROM smoking_drinking_features_clean
+GROUP BY lifestyle_group
+ORDER BY lifestyle_group;
+
+-- 5.5 Average BMI by lifestyle
+SELECT
+  lifestyle_group,
+  AVG(bmi) AS avg_bmi
+FROM smoking_drinking_features_clean
+GROUP BY lifestyle_group
+ORDER BY lifestyle_group;
+
