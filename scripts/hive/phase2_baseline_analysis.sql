@@ -1,8 +1,6 @@
 -- ======================================================
 -- Phase 2 - Baseline Analysis & Cleaning (Hive)
--- Project : DS8003 - Health Risk Analysis
 -- Branch  : hive-work
--- Author  : Nimrah / Group 5
 -- Purpose : Data quality checks, cleaning, and baseline
 --           descriptive statistics using Hive.
 -- ======================================================
